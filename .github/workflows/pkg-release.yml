@@ -40,6 +40,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Report Rollouts deployment start
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CHANGE_MONITOR_ENV: "publish"
+          CHANGE_MONITOR_SERVICE: "@postman/postman-mcp-server"
+          CHANGE_MONITOR_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+          CHANGE_MONITOR_ACTOR: "github-actions:${{ github.workflow }}:${{ github.job }}:@postman/postman-mcp-server:publish"
+        run: |
+          export DEPLOY_VERSION="$(git rev-parse HEAD)"
+          bash .github/scripts/rollouts-reporter.sh bootstrap
+          bash .github/scripts/rollouts-reporter.sh start
       - name: Publish to npm (stable)
         if: github.ref_type == 'tag'
         run: pnpm publish --provenance --access public --no-git-checks
@@ -60,3 +71,13 @@ jobs:
         run: pnpm publish --provenance --access public --no-git-checks --tag ${{ inputs.dist-tag }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.POSTMAN_NPM_TOKEN }}
+      - name: Report Rollouts deployment finish
+        if: always()
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CHANGE_MONITOR_ENV: "publish"
+          CHANGE_MONITOR_SERVICE: "@postman/postman-mcp-server"
+          CHANGE_MONITOR_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+          CHANGE_MONITOR_ACTOR: "github-actions:${{ github.workflow }}:${{ github.job }}:@postman/postman-mcp-server:publish"
+          CHANGE_MONITOR_OUTCOME: ${{ job.status }}
+        run: bash .github/scripts/rollouts-reporter.sh finish
